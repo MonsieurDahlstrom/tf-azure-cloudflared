@@ -1,0 +1,241 @@
+name: Integration Tests
+
+on:
+  workflow_call:
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+
+jobs:
+  test-ubuntu:
+    name: Integration Tests (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            go_version: 1.21
+            terraform_version: 1.5.7
+            goos: linux
+            goarch: amd64
+    defaults:
+      run:
+        shell: bash
+    env:
+      GO111MODULE: on
+      CGO_ENABLED: 1
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      TF_IN_AUTOMATION: true
+      TF_INPUT: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ matrix.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ matrix.os }}-go-
+            
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go_version }}
+          check-latest: true
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+            **/go.mod
+            
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ matrix.terraform_version }}
+          terraform_wrapper: false
+          
+      - name: Cache Terraform dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            .terraform
+          key: ${{ matrix.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ matrix.os }}-terraform-
+            
+      - name: Download go modules
+        working-directory: tests
+        run: go mod download
+        env:
+          GOPROXY: https://proxy.golang.org,direct
+          
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+      - name: Run integration tests
+        working-directory: tests
+        run: |
+          go run gotest.tools/gotestsum@latest \
+            --format short-verbose \
+            --junitfile test-results-${{ matrix.os }}.xml \
+            -- -tags=integration \
+            -timeout 30m \
+            -race \
+            -coverprofile=coverage-${{ matrix.os }}.out \
+            -covermode=atomic
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: true
+          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.os }}
+          path: |
+            tests/test-results-${{ matrix.os }}.xml
+            tests/coverage-${{ matrix.os }}.out
+          retention-days: 7
+          
+      - name: Report test coverage
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: tests/coverage-${{ matrix.os }}.out
+          fail_ci_if_error: false
+          name: codecov-${{ matrix.os }}
+          flags: integration
+          verbose: true
+
+  test-windows:
+    name: Integration Tests (Windows)
+    needs: test-ubuntu
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        os: [windows-latest]
+        include:
+          - os: windows-latest
+            go_version: 1.21
+            terraform_version: 1.5.7
+            goos: windows
+            goarch: amd64
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GO111MODULE: on
+      CGO_ENABLED: 1
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      TF_IN_AUTOMATION: true
+      TF_INPUT: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\Users\runner\AppData\Local\go-build
+          key: ${{ matrix.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ matrix.os }}-go-
+            
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go_version }}
+          check-latest: true
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+            **/go.mod
+            
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ matrix.terraform_version }}
+          terraform_wrapper: false
+          
+      - name: Cache Terraform dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\Users\runner\AppData\Local\terraform.d\plugin-cache
+            .terraform
+          key: ${{ matrix.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ matrix.os }}-terraform-
+            
+      - name: Download go modules
+        working-directory: tests
+        run: go mod download
+        env:
+          GOPROXY: https://proxy.golang.org,direct
+          
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+      - name: Run integration tests
+        working-directory: tests
+        run: |
+          & go run gotest.tools/gotestsum@latest `
+            "--format=short-verbose" `
+            "--junitfile=test-results-${{ matrix.os }}.xml" `
+            "--" `
+            "-tags=integration" `
+            "-timeout=30m" `
+            "-race" `
+            "-coverprofile=coverage-${{ matrix.os }}.out" `
+            "-covermode=atomic"
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: true
+          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.os }}
+          path: |
+            tests/test-results-${{ matrix.os }}.xml
+            tests/coverage-${{ matrix.os }}.out
+          retention-days: 7
+          
+      - name: Report test coverage
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: tests/coverage-${{ matrix.os }}.out
+          fail_ci_if_error: false
+          name: codecov-${{ matrix.os }}
+          flags: integration
+          verbose: true 

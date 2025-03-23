@@ -1,0 +1,24 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    branches: [ main, next ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    uses: ./.github/workflows/terraform-validation.yml
+    secrets: inherit
+    
+  unit-test:
+    needs: terraform
+    uses: ./.github/workflows/unit-tests.yml
+    secrets: inherit
+    
+  integration:
+    needs: unit-test
+    uses: ./.github/workflows/integration-tests.yml
+    secrets: inherit
