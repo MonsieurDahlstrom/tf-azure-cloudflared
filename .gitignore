@@ -1,0 +1,29 @@
+# Terraform files
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfstate.lock.info
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfvars
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+
+# Azure credentials
+**/azure-credentials.sh
+**/*.env
+**/*secrets*
+**/*credential*
+
+# Local development files
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db 
+
+# Example output files
+example/all_dces.txt
+example/all_dcrs.txt 
