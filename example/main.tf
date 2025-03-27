@@ -6,7 +6,7 @@ resource "random_string" "rg_name" {
 
 resource "azurerm_resource_group" "example" {
   name     = "rg-${random_string.rg_name.result}"
-  location            = "swedencentral"
+  location = "swedencentral"
 }
 
 resource "azurerm_virtual_network" "main" {
@@ -33,33 +33,27 @@ module "cloudflared" {
   vnet_cidr = "10.0.0.0/16"
 }
 
-# Add tunnel health check
-resource "null_resource" "tunnel_health_check" {
-  triggers = {
-    timestamp = timestamp()
-    tunnel_id = module.cloudflared.cloudflared_tunnel_id
-    # Store script paths in triggers to recreate if scripts change
-    bash_script_path = "${path.module}/check_tunnel_health.sh"
-    ps_script_path   = "${path.module}/check_tunnel_health.ps1"
-    # Store OS information for cross-platform support
-    is_windows = substr(pathexpand("~"), 0, 1) == "/" ? false : true
+# Example of using the tunnel_health_check as a dependency
+# This ensures the tunnel is healthy before creating other resources
+resource "azurerm_kubernetes_cluster" "example" {
+  count               = 0  # Set to 1 to actually create the cluster
+  name                = "example-aks"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  dns_prefix          = "exampleaks"
+
+  default_node_pool {
+    name       = "default"
+    node_count = 1
+    vm_size    = "Standard_D2_v2"
   }
 
-  # Make sure the bash script is executable on Unix/Linux systems
-  provisioner "local-exec" {
-    command     = self.triggers.is_windows ? "echo 'Windows detected, skipping chmod'" : "chmod +x ${path.module}/check_tunnel_health.sh"
-    interpreter = self.triggers.is_windows ? ["cmd", "/c"] : ["/bin/bash", "-c"]
+  identity {
+    type = "SystemAssigned"
   }
 
-  # Run the health check script
-  provisioner "local-exec" {
-    command = self.triggers.is_windows ? (
-      "powershell.exe -ExecutionPolicy Bypass -File ${path.module}/check_tunnel_health.ps1 -TunnelID '${module.cloudflared.cloudflared_tunnel_id}' -CloudflareAccountId '${var.cloudflare_account_id}' -CloudflareApiToken '${var.cloudflare_api_token}' ${var.cloudflare_email != null ? "-CloudflareEmail '${var.cloudflare_email}'" : ""}"
-      ) : (
-      "${path.module}/check_tunnel_health.sh '${module.cloudflared.cloudflared_tunnel_id}' '${var.cloudflare_account_id}' '${var.cloudflare_api_token}' ${var.cloudflare_email != null ? "'${var.cloudflare_email}'" : ""}"
-    )
-    interpreter = self.triggers.is_windows ? ["cmd", "/c"] : ["/bin/bash", "-c"]
-  }
+  # Ensure the tunnel is healthy before creating the AKS cluster
+  depends_on = [module.cloudflared.tunnel_health_check]
 }
 
 # Add outputs to be used by health check scripts

@@ -9,9 +9,6 @@ param(
     [string]$CloudflareApiToken,
     
     [Parameter(Mandatory=$false)]
-    [string]$CloudflareEmail,
-    
-    [Parameter(Mandatory=$false)]
     [switch]$CustomDebug
 )
 
@@ -24,7 +21,7 @@ if ($CustomDebug) {
 # Check if required parameters are provided
 if ([string]::IsNullOrEmpty($TunnelID) -or [string]::IsNullOrEmpty($CloudflareAccountId) -or [string]::IsNullOrEmpty($CloudflareApiToken)) {
     Write-Error "Error: Missing required parameters"
-    Write-Host "Usage: $PSCommandPath -TunnelID <tunnel_id> -CloudflareAccountId <account_id> -CloudflareApiToken <api_token> [-CloudflareEmail <email>]"
+    Write-Host "Usage: $PSCommandPath -TunnelID <tunnel_id> -CloudflareAccountId <account_id> -CloudflareApiToken <api_token>"
     exit 1
 }
 
@@ -73,7 +70,6 @@ function Test-CloudflareToken {
     param (
         [string]$AccountId,
         [string]$ApiToken,
-        [string]$Email = "",
         [string]$TunnelId = ""
     )
 
@@ -223,7 +219,7 @@ $attempt = 0
 $sleepTime = 20
 
 # First, validate that the API token works with this specific tunnel
-if (-not (Test-CloudflareToken -AccountId $CloudflareAccountId -ApiToken $CloudflareApiToken -Email $CloudflareEmail -TunnelId $TunnelID)) {
+if (-not (Test-CloudflareToken -AccountId $CloudflareAccountId -ApiToken $CloudflareApiToken -TunnelId $TunnelID)) {
     Write-Host "`nToken issues detected. Here's what to do:" -ForegroundColor Red
     Write-Host "1. Go to Cloudflare Dashboard > Account Profile > API Tokens" -ForegroundColor Yellow
     Write-Host "2. Create a new API token with these permissions:" -ForegroundColor Yellow
@@ -232,8 +228,7 @@ if (-not (Test-CloudflareToken -AccountId $CloudflareAccountId -ApiToken $Cloudf
     Write-Host "4. Try running this script again with the new token" -ForegroundColor Yellow
     
     if ($script:TokenType -eq "GlobalAPIKey") {
-        Write-Host "`nYou seem to be using a Global API Key - consider adding the -CloudflareEmail parameter:" -ForegroundColor Cyan
-        Write-Host ".\check_tunnel_health.ps1 -TunnelID '$TunnelID' -CloudflareAccountId '$CloudflareAccountId' -CloudflareApiToken '$CloudflareApiToken' -CloudflareEmail 'your-email@example.com'" -ForegroundColor Cyan
+        Write-Host "`nYou seem to be using a Global API Key - API Tokens are recommended instead" -ForegroundColor Cyan
     }
     
     exit 1

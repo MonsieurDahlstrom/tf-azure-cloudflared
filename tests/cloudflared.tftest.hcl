@@ -19,18 +19,18 @@ run "cloudflared" {
     }
 
     assert {
-        condition     = null_resource.tunnel_health_check != null
+        condition     = module.cloudflared.tunnel_health_check != null
         error_message = "Tunnel health check should be executed"
     }
 
     assert {
-        condition     = null_resource.tunnel_health_check.triggers.timestamp != null
+        condition     = module.cloudflared.tunnel_health_check.triggers.timestamp != null
         error_message = "Tunnel health check should have a timestamp"
     }
 
     # Check if the tunnel health check completed successfully
     assert {
-        condition     = null_resource.tunnel_health_check.id != null
+        condition     = module.cloudflared.tunnel_health_check.id != null
         error_message = "Tunnel health check should complete successfully"
     }
 }
