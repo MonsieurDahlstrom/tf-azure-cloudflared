@@ -47,7 +47,7 @@ function Get-CloudflareTunnelStatus {
         Write-Host "Account ID: $AccountId"
         Write-Host "Tunnel ID: $TunnelId"
         
-        $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/$AccountId/cfd_tunnel/$TunnelId" -Headers $headers -Method Get
+        $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}" -Headers $headers -Method Get
         
         # Debug response
         Write-Host "Response received:"
