@@ -37,6 +37,10 @@ function Get-CloudflareTunnelStatus {
         [string]$ApiToken
     )
 
+    # Remove any quotes from the parameters
+    $TunnelId = $TunnelId.Trim("'")
+    $AccountId = $AccountId.Trim("'")
+
     $headers = @{
         "Authorization" = "Bearer $ApiToken"
         "Content-Type" = "application/json"
@@ -47,7 +51,10 @@ function Get-CloudflareTunnelStatus {
         Write-Host "Account ID: $AccountId"
         Write-Host "Tunnel ID: $TunnelId"
         
-        $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}" -Headers $headers -Method Get
+        $uri = "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}"
+        Write-Host "Request URI: $uri"
+        
+        $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
         
         # Debug response
         Write-Host "Response received:"
@@ -80,7 +87,11 @@ function Get-CloudflareTunnelStatus {
     catch {
         Write-Host "Error checking tunnel status: $_"
         Write-Host "Error details:"
-        $_.Exception.Response | ConvertTo-Json | Write-Host
+        if ($_.Exception.Response) {
+            $reader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+            $errorBody = $reader.ReadToEnd()
+            Write-Host "Response body: $errorBody"
+        }
         return "Error"
     }
 }
