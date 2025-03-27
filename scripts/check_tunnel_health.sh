@@ -5,14 +5,13 @@
 # Check if all required parameters are provided
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "Error: Missing required parameters"
-    echo "Usage: $0 <tunnel_id> <cloudflare_account_id> <cloudflare_api_token> [cloudflare_email]"
+    echo "Usage: $0 <tunnel_id> <cloudflare_account_id> <cloudflare_api_token>"
     exit 1
 fi
 
 TUNNEL_ID=$1
 CLOUDFLARE_ACCOUNT_ID=$2
 CLOUDFLARE_API_TOKEN=$3
-CLOUDFLARE_EMAIL=$4  # Optional
 
 # Remove any quotes from parameters
 TUNNEL_ID=$(echo "$TUNNEL_ID" | sed -e "s/^['\"]//g" -e "s/['\"]$//g")
