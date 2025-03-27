@@ -29,6 +29,55 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
+# Function to validate Cloudflare API token
+function Test-CloudflareToken {
+    param (
+        [string]$AccountId,
+        [string]$ApiToken
+    )
+
+    # Remove any quotes and normalize
+    $AccountId = $AccountId.Trim("'").Trim('"')
+    $ApiToken = $ApiToken.Trim("'").Trim('"')
+    $ApiToken = $ApiToken -replace '[^\x20-\x7E]', ''
+
+    Write-Host "Testing Cloudflare API token..."
+    
+    $headers = @{
+        "Authorization" = "Bearer $ApiToken"
+        "Content-Type" = "application/json"
+    }
+
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        
+        # Use a simple endpoint like account verification
+        $uri = "https://api.cloudflare.com/client/v4/accounts/$AccountId"
+        Write-Host "Sending test request to: $uri"
+        
+        $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get -UseBasicParsing
+        
+        if ($response.success -eq $true) {
+            Write-Host "API token is valid!"
+            return $true
+        } else {
+            Write-Host "API token validation failed:"
+            $response.errors | ConvertTo-Json | Write-Host
+            return $false
+        }
+    }
+    catch {
+        Write-Host "Error validating API token: $_"
+        Write-Host "Error details:"
+        if ($_.Exception.Response) {
+            $reader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+            $errorBody = $reader.ReadToEnd()
+            Write-Host "Response body: $errorBody"
+        }
+        return $false
+    }
+}
+
 # Function to check Cloudflare tunnel status
 function Get-CloudflareTunnelStatus {
     param (
@@ -38,9 +87,17 @@ function Get-CloudflareTunnelStatus {
     )
 
     # Remove any quotes from the parameters
-    $TunnelId = $TunnelId.Trim("'")
-    $AccountId = $AccountId.Trim("'")
+    $TunnelId = $TunnelId.Trim("'").Trim('"')
+    $AccountId = $AccountId.Trim("'").Trim('"')
+    $ApiToken = $ApiToken.Trim("'").Trim('"')
 
+    # Debug token length (without showing the actual token)
+    Write-Host "API Token length: $($ApiToken.Length)"
+    Write-Host "First 4 characters of token: $($ApiToken.Substring(0, 4))..."
+    
+    # Ensure there are no hidden characters or issues with encoding
+    $ApiToken = $ApiToken -replace '[^\x20-\x7E]', ''
+    
     $headers = @{
         "Authorization" = "Bearer $ApiToken"
         "Content-Type" = "application/json"
@@ -54,7 +111,20 @@ function Get-CloudflareTunnelStatus {
         $uri = "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}"
         Write-Host "Request URI: $uri"
         
-        $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+        # Debug headers (without showing the actual token)
+        Write-Host "Request headers:"
+        $headers.GetEnumerator() | ForEach-Object {
+            if ($_.Key -eq "Authorization") {
+                Write-Host "  $($_.Key): Bearer [REDACTED]"
+            } else {
+                Write-Host "  $($_.Key): $($_.Value)"
+            }
+        }
+        
+        # Try with TLS 1.2 explicitly
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        
+        $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get -UseBasicParsing
         
         # Debug response
         Write-Host "Response received:"
@@ -101,6 +171,12 @@ Write-Host "Checking tunnel health..."
 $maxAttempts = 30
 $attempt = 0
 $sleepTime = 20
+
+# First, validate that the API token works
+if (-not (Test-CloudflareToken -AccountId $CloudflareAccountId -ApiToken $CloudflareApiToken)) {
+    Write-Host "Failed to validate Cloudflare API token. Please check your credentials."
+    exit 1
+}
 
 while ($attempt -lt $maxAttempts) {
     $attempt++
