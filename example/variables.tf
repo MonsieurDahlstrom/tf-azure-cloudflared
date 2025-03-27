@@ -8,6 +8,12 @@ variable "cloudflare_api_token" {
   type        = string
 }
 
+variable "cloudflare_email" {
+  description = "The Cloudflare account email (required for Global API Keys)"
+  type        = string
+  default     = null
+}
+
 variable "subscription_id" {
   description = "The Azure subscription ID"
   type        = string
