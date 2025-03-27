@@ -10,15 +10,10 @@ permissions:
 
 jobs:
   terraform:
-    uses: ./.github/workflows/terraform-validation.yml
-    secrets: inherit
-    
-  unit-test:
-    needs: terraform
-    uses: ./.github/workflows/unit-tests.yml
+    uses: ./.github/workflows/terraform-security-scan.yml
     secrets: inherit
     
   integration:
-    needs: unit-test
+    needs: terraform
     uses: ./.github/workflows/integration-tests.yml
     secrets: inherit

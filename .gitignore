@@ -1,12 +1,17 @@
 # Terraform files
 **/*.tfstate
-**/*.tfstate.backup
-**/*.tfstate.lock.info
-**/.terraform/
-**/.terraform.lock.hcl
-**/terraform.tfvars
+**/*.tfstate.*
+**/*.tfvars
+**/*.tfvars.json
 **/*.auto.tfvars
 **/*.auto.tfvars.json
+**/.terraform/
+**/terraform.rc
+**/terraform.override.tf
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
 
 # Azure credentials
 **/azure-credentials.sh

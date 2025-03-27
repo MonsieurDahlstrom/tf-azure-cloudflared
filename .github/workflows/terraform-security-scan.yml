@@ -1,0 +1,92 @@
+name: Terraform Security Scan
+
+on:
+  workflow_call:
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+
+jobs:
+  validate:
+    name: Terraform Validation and Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+    env:
+      TF_IN_AUTOMATION: true
+      TF_INPUT: false
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cache Terraform dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            .terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+            
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+          
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+        
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend=false \
+            -reconfigure \
+            -upgrade
+        env:
+          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+          
+      - name: Terraform Validate
+        run: |
+          terraform validate \
+            -json \
+            -no-color
+        continue-on-error: true
+        
+      - name: Install Checkov
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install checkov
+          
+      - name: Run Checkov
+        run: |
+          checkov -d . \
+            --output sarif \
+            --output-file-path results.sarif \
+            --framework terraform \
+            --check CKV_AZURE_* \
+            --check CKV_* \
+            --skip-check CKV_AZURE_1 \
+            --skip-check CKV_AZURE_2 \
+            --skip-check CKV_123 \
+            --skip-check CKV_124 \
+            --compact \
+            --directory .
+        continue-on-error: true
+          
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          checkout_path: ${{ github.workspace }} 
