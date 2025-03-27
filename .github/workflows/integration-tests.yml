@@ -126,6 +126,9 @@ jobs:
             tenant_id = "${{ secrets.AZURE_TENANT_ID }}"
             client_id = "${{ secrets.AZURE_CLIENT_ID }}"
             use_oidc = $true
+            cloudflare_api_token = "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+            cloudflare_zone_id = "${{ secrets.CLOUDFLARE_ZONE_ID }}"
+            cloudflare_account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
           } | ConvertTo-Json | Set-Content .auto.tfvars.json
           
       - name: Run Terraform tests
