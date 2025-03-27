@@ -43,7 +43,22 @@ function Get-CloudflareTunnelStatus {
     }
 
     try {
+        Write-Host "Making request to Cloudflare API..."
+        Write-Host "Account ID: $AccountId"
+        Write-Host "Tunnel ID: $TunnelId"
+        
         $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/$AccountId/cfd_tunnel/$TunnelId" -Headers $headers -Method Get
+        
+        # Debug response
+        Write-Host "Response received:"
+        $response | ConvertTo-Json | Write-Host
+        
+        if ($response.success -eq $false) {
+            Write-Host "Cloudflare API returned error:"
+            $response.errors | ConvertTo-Json | Write-Host
+            return "Error"
+        }
+        
         $status = $response.result.status
         
         if ($status -eq "healthy") {
@@ -64,6 +79,8 @@ function Get-CloudflareTunnelStatus {
     }
     catch {
         Write-Host "Error checking tunnel status: $_"
+        Write-Host "Error details:"
+        $_.Exception.Response | ConvertTo-Json | Write-Host
         return "Error"
     }
 }
