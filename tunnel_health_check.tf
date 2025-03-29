@@ -38,7 +38,11 @@ resource "null_resource" "tunnel_health_check" {
         "if [ -f ${path.module}/scripts/check_tunnel_health.sh ]; then ${path.module}/scripts/check_tunnel_health.sh '${local.tunnel_id}' '${var.cloudflare_account_id}' '${var.cloudflare_api_token}'; else echo 'Tunnel ${local.tunnel_id} configuration validated' > /dev/null; fi"
       )
     ) : (
-      "echo 'Using existing tunnel ${local.tunnel_id} from token' > /dev/null"
+      self.triggers.is_windows ? (
+        "echo 'Using existing tunnel ${local.tunnel_id} from token' > NUL"
+      ) : (
+        "echo 'Using existing tunnel ${local.tunnel_id} from token' > /dev/null"
+      )
     )
     interpreter = self.triggers.is_windows ? ["cmd", "/c"] : ["/bin/bash", "-c"]
   }
