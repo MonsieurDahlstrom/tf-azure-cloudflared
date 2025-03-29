@@ -251,10 +251,7 @@ resource "null_resource" "cloudflared_cleanup" {
   }
 
   depends_on = [
-    azurerm_linux_virtual_machine.vm,
-    cloudflare_zero_trust_tunnel_cloudflared.tunnel,
-    cloudflare_zero_trust_tunnel_cloudflared_config.config,
-    cloudflare_zero_trust_tunnel_cloudflared_route.vnet
+    azurerm_linux_virtual_machine.vm
   ]
 
   provisioner "local-exec" {

@@ -25,5 +25,5 @@ output "tunnel_status" {
 
 output "tunnel_health_check" {
   description = "The tunnel health check resource that can be used in depends_on blocks"
-  value       = try(null_resource.tunnel_health_check, null)
+  value       = null_resource.tunnel_health_check
 }

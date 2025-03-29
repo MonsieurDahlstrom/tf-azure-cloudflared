@@ -17,24 +17,30 @@ variable "tunnel_spec" {
       hostname = string
       service  = string
     }))
-    vnet_cidr = string
+    vnet_cidr = optional(string)
   })
+  sensitive = true
+  default = null
 
   validation {
-    condition     = can(cidrhost(var.tunnel_spec.vnet_cidr, 0)) && can(cidrnetmask(var.tunnel_spec.vnet_cidr))
+    condition = var.tunnel_spec == null ? true : (
+      var.tunnel_spec.vnet_cidr == null ? true : 
+      can(cidrhost(var.tunnel_spec.vnet_cidr, 0)) && can(cidrnetmask(var.tunnel_spec.vnet_cidr))
+    )
     error_message = "Must be valid IPv4 CIDR."
   }
 
   validation {
-    condition = (
-      can(regex("^10\\.", var.tunnel_spec.vnet_cidr)) ||
-      can(regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.", var.tunnel_spec.vnet_cidr)) ||
-      can(regex("^192\\.168\\.", var.tunnel_spec.vnet_cidr))
+    condition = var.tunnel_spec == null ? true : (
+      var.tunnel_spec.vnet_cidr == null ? true :
+      (
+        can(regex("^10\\.", var.tunnel_spec.vnet_cidr)) ||
+        can(regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.", var.tunnel_spec.vnet_cidr)) ||
+        can(regex("^192\\.168\\.", var.tunnel_spec.vnet_cidr))
+      )
     )
     error_message = "CIDR must be in private IP range (10.0.0.0/8, 172.16.0.0/12, or 192.168.0.0/16)."
   }
-
-  default = null
 }
 
 variable "vm_name" {

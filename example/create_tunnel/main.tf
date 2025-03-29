@@ -24,7 +24,7 @@ resource "azurerm_subnet" "virtual_machines" {
 }
 
 module "cloudflared" {
-  source = "../"
+  source = "../../"
   resource_group_name = azurerm_resource_group.example.name
   subnet_id = azurerm_subnet.virtual_machines.id
   cloudflare_account_id = var.cloudflare_account_id
