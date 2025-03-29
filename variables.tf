@@ -3,48 +3,61 @@ variable "cloudflare_account_id" {
   type        = string
 }
 
-variable "domain_name" {
-  description = "The domain name to use for the tunnel"
-  type        = string
-}
-
-variable "subnet_id" {
-  description = "The ID of the subnet where the VM will be deployed"
-  type        = string
-}
-
-variable "ingress_rules" {
-  description = "List of ingress rules for the Cloudflare tunnel"
-  type = list(object({
-    hostname = string
-    service  = string
-  }))
-  default = []
-}
-
 variable "cloudflare_api_token" {
   description = "The Cloudflare API token"
   type        = string
   sensitive   = true
 }
 
-variable "vnet_cidr" {
-  description = "The CIDR block of the Azure VNet to route through the tunnel"
-  type        = string
+variable "tunnel_spec" {
+  description = "Specifications for the Cloudflare tunnel"
+  type = object({
+    domain_name  = string
+    ingress_rules = list(object({
+      hostname = string
+      service  = string
+    }))
+    vnet_cidr = optional(string)
+  })
+  sensitive = true
+  default = null
 
   validation {
-    condition     = can(cidrhost(var.vnet_cidr, 0)) && can(cidrnetmask(var.vnet_cidr))
+    condition = var.tunnel_spec == null ? true : (
+      var.tunnel_spec.vnet_cidr == null ? true : 
+      can(cidrhost(var.tunnel_spec.vnet_cidr, 0)) && can(cidrnetmask(var.tunnel_spec.vnet_cidr))
+    )
     error_message = "Must be valid IPv4 CIDR."
   }
 
   validation {
-    condition     = (
-      can(regex("^10\\.", var.vnet_cidr)) ||
-      can(regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.", var.vnet_cidr)) ||
-      can(regex("^192\\.168\\.", var.vnet_cidr))
+    condition = var.tunnel_spec == null ? true : (
+      var.tunnel_spec.vnet_cidr == null ? true :
+      (
+        can(regex("^10\\.", var.tunnel_spec.vnet_cidr)) ||
+        can(regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.", var.tunnel_spec.vnet_cidr)) ||
+        can(regex("^192\\.168\\.", var.tunnel_spec.vnet_cidr))
+      )
     )
     error_message = "CIDR must be in private IP range (10.0.0.0/8, 172.16.0.0/12, or 192.168.0.0/16)."
   }
+}
+
+variable "vm_name" {
+  description = "Name of the virtual machine running cloudflared"
+  type        = string
+  default     = "vm-cloudflared"
+}
+
+variable "tunnel_token_secret" {
+  description = "The name of the Key Vault secret containing the tunnel token"
+  type        = string
+  default     = null
+}
+
+variable "subnet_id" {
+  description = "The ID of the subnet where the VM will be deployed"
+  type        = string
 }
 
 variable "resource_group_name" {
@@ -58,8 +71,15 @@ variable "tags" {
   default     = {}
 }
 
-variable "vm_name" {
-  description = "Name of the virtual machine running cloudflared"
-  type        = string
-  default     = "vm-cloudflared"
+locals {
+  # Validation for token configuration
+  validate_token_config = alltrue([
+    # Case 1: Ensure we don't have both token sources
+    !(var.tunnel_token_secret != null && var.tunnel_spec != null),
+    # Case 2: Ensure we have at least one token source
+    var.tunnel_token_secret != null || var.tunnel_spec != null
+  ])
+
+  # Fail if validation fails
+  token_validation_check = local.validate_token_config ? true : tobool("Either tunnel_token_secret OR tunnel_spec must be provided, but not both")
 } 

@@ -31,37 +31,39 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-# Function to debug token issues
+# Function to debug token issues (only used when CustomDebug is enabled)
 function Debug-ApiToken {
     param (
         [string]$Token
     )
     
-    Write-Host "DEBUG: Token diagnostics:" -ForegroundColor Yellow
-    Write-Host "  - Length: $($Token.Length)" -ForegroundColor Yellow
-    Write-Host "  - First 4 chars: $($Token.Substring(0, [Math]::Min(4, $Token.Length)))..." -ForegroundColor Yellow
-    Write-Host "  - Contains non-printable chars: $(($Token -match '[^\x20-\x7E]'))" -ForegroundColor Yellow
-    Write-Host "  - Contains quotes: $(($Token -match '[''"]'))" -ForegroundColor Yellow
-    
-    # Check token format
-    $isLikelyAPIKey = $Token -match '^[a-f0-9]{37}$'
-    $isLikelyAPIToken = $Token -match '^[a-zA-Z0-9_-]{40,}$'
-    
-    if ($isLikelyAPIKey) {
-        Write-Host "  - Token format: Appears to be a Global API Key" -ForegroundColor Yellow
-        Write-Host "  - NOTE: Global API Keys require X-Auth-Email header" -ForegroundColor Yellow
-        $script:TokenType = "GlobalAPIKey"
-    } elseif ($isLikelyAPIToken) {
-        Write-Host "  - Token format: Appears to be an API Token" -ForegroundColor Green
-        Write-Host "  - NOTE: API Tokens use the Authorization: Bearer header" -ForegroundColor Green
-        $script:TokenType = "APIToken"
-    } else {
-        Write-Host "  - Token format: Unknown" -ForegroundColor Red
-        $script:TokenType = "Unknown"
-    }
-    
-    if ($Token.StartsWith("Bearer ")) {
-        Write-Host "  - WARNING: Token already includes 'Bearer ' prefix - this may cause auth issues" -ForegroundColor Red
+    if ($CustomDebug) {
+        Write-Host "DEBUG: Token diagnostics:" -ForegroundColor Yellow
+        Write-Host "  - Length: $($Token.Length)" -ForegroundColor Yellow
+        Write-Host "  - First 4 chars: [REDACTED]..." -ForegroundColor Yellow
+        Write-Host "  - Contains non-printable chars: $(($Token -match '[^\x20-\x7E]'))" -ForegroundColor Yellow
+        Write-Host "  - Contains quotes: $(($Token -match '[''"]'))" -ForegroundColor Yellow
+        
+        # Check token format
+        $isLikelyAPIKey = $Token -match '^[a-f0-9]{37}$'
+        $isLikelyAPIToken = $Token -match '^[a-zA-Z0-9_-]{40,}$'
+        
+        if ($isLikelyAPIKey) {
+            Write-Host "  - Token format: Appears to be a Global API Key" -ForegroundColor Yellow
+            Write-Host "  - NOTE: Global API Keys require X-Auth-Email header" -ForegroundColor Yellow
+            $script:TokenType = "GlobalAPIKey"
+        } elseif ($isLikelyAPIToken) {
+            Write-Host "  - Token format: Appears to be an API Token" -ForegroundColor Green
+            Write-Host "  - NOTE: API Tokens use the Authorization: Bearer header" -ForegroundColor Green
+            $script:TokenType = "APIToken"
+        } else {
+            Write-Host "  - Token format: Unknown" -ForegroundColor Red
+            $script:TokenType = "Unknown"
+        }
+        
+        if ($Token.StartsWith("Bearer ")) {
+            Write-Host "  - WARNING: Token already includes 'Bearer ' prefix - this may cause auth issues" -ForegroundColor Red
+        }
     }
 }
 
@@ -73,17 +75,16 @@ function Test-CloudflareToken {
         [string]$TunnelId = ""
     )
 
-    # Original token for debugging
-    $OriginalToken = $ApiToken
-    
     # Clean token and account ID
     $AccountId = $AccountId.Trim("'").Trim('"')
     $TunnelId = $TunnelId.Trim("'").Trim('"')
     $ApiToken = $ApiToken.Trim("'").Trim('"')
     $ApiToken = $ApiToken -replace '[^\x20-\x7E]', ''
 
-    Write-Host "Testing Cloudflare API token..." -ForegroundColor Cyan
-    Debug-ApiToken -Token $ApiToken
+    if ($CustomDebug) {
+        Write-Host "Testing Cloudflare API token..." -ForegroundColor Cyan
+        Debug-ApiToken -Token $ApiToken
+    }
     
     # Create Auth headers
     $headers = @{
@@ -91,18 +92,15 @@ function Test-CloudflareToken {
         "Content-Type" = "application/json"
     }
     
-    # This script checks the tunnel directly without requiring account-level read permissions.
-    # The API token only needs 'Account > Zero Trust > Read' permissions for the specific account.
-    $tunnelUri = "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}"
-    Write-Host "Checking access to tunnel: $tunnelUri" -ForegroundColor Cyan
-    
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $response = Invoke-RestMethod -Uri $tunnelUri -Headers $headers -Method Get -UseBasicParsing
+        $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}" -Headers $headers -Method Get -UseBasicParsing
         
-        Write-Host "SUCCESS: Token has access to tunnel $TunnelId" -ForegroundColor Green
-        Write-Host "Tunnel Name: $($response.result.name)" -ForegroundColor Green
-        Write-Host "Tunnel Status: $($response.result.status)" -ForegroundColor Green
+        if ($CustomDebug) {
+            Write-Host "SUCCESS: Token has access to tunnel [REDACTED_TUNNEL]" -ForegroundColor Green
+            Write-Host "Tunnel Name: $($response.result.name)" -ForegroundColor Green
+            Write-Host "Tunnel Status: $($response.result.status)" -ForegroundColor Green
+        }
         
         # Store successful method
         $script:SuccessfulAuthMethod = @{
@@ -114,15 +112,19 @@ function Test-CloudflareToken {
     } 
     catch {
         $errorMessage = $_.Exception.Message
-        Write-Host "FAILED to access tunnel: $errorMessage" -ForegroundColor Red
+        # Sanitize error message to remove potential token or sensitive information
+        $sanitizedError = $errorMessage -replace '(eyJ|[A-Za-z0-9_-]{20,})', '[REDACTED]'
+        Write-Error "Failed to access tunnel: $sanitizedError"
         
-        if ($_.Exception.Response) {
+        if ($_.Exception.Response -and $CustomDebug) {
             $reader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
             $errorBody = $reader.ReadToEnd()
-            Write-Host "Error details: $errorBody" -ForegroundColor Red
+            # Sanitize error body
+            $sanitizedErrorBody = $errorBody -replace '(eyJ|[A-Za-z0-9_-]{20,})', '[REDACTED]'
+            Write-Error "Error details: $sanitizedErrorBody"
         }
         
-        Write-Host "`nLikely issue: Token doesn't have permissions for this tunnel or the tunnel doesn't exist" -ForegroundColor Yellow
+        Write-Error "Likely issue: Token doesn't have permissions for this tunnel or the tunnel doesn't exist"
         return $false
     }
 }
@@ -155,26 +157,18 @@ function Get-CloudflareTunnelStatus {
     }
 
     try {
-        Write-Host "Making request to Cloudflare API..." -ForegroundColor Cyan
-        Write-Host "Account ID: $AccountId" -ForegroundColor Cyan
-        Write-Host "Tunnel ID: $TunnelId" -ForegroundColor Cyan
-        
-        $uri = "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}"
-        Write-Host "Request URI: $uri" -ForegroundColor Cyan
-        Write-Host "Using authentication method: $($script:SuccessfulAuthMethod.Name)" -ForegroundColor Cyan
-        
         # Try with TLS 1.2 explicitly
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         
-        $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get -UseBasicParsing
-        
-        # Debug response
-        Write-Host "Response received:" -ForegroundColor Green
-        $response | ConvertTo-Json | Write-Host
+        $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}" -Headers $headers -Method Get -UseBasicParsing
         
         if ($response.success -eq $false) {
-            Write-Host "Cloudflare API returned error:" -ForegroundColor Red
-            $response.errors | ConvertTo-Json | Write-Host -ForegroundColor Red
+            if ($CustomDebug) {
+                Write-Error "Cloudflare API returned error"
+                # Sanitize errors
+                $sanitizedErrors = ($response.errors | ConvertTo-Json) -replace '(eyJ|[A-Za-z0-9_-]{20,})', '[REDACTED]'
+                Write-Error $sanitizedErrors
+            }
             return "Error"
         }
         
@@ -184,25 +178,29 @@ function Get-CloudflareTunnelStatus {
             return "healthy"
         }
         elseif ($status -eq "null" -or $status -eq "error") {
-            Write-Host "Error checking tunnel status" -ForegroundColor Red
+            if ($CustomDebug) {
+                Write-Error "Error checking tunnel status"
+            }
             return "Error"
         }
-        elseif ($status -eq "inactive") {
-            Write-Host "Tunnel is inactive (waiting for activation)..." -ForegroundColor Yellow
-            return "waiting"
-        }
         else {
-            Write-Host "Tunnel status: $status" -ForegroundColor Yellow
+            if ($CustomDebug) {
+                Write-Host "Tunnel status: $status" -ForegroundColor Yellow
+            }
             return "waiting"
         }
     }
     catch {
-        Write-Host "Error checking tunnel status: $_" -ForegroundColor Red
-        Write-Host "Error details:" -ForegroundColor Red
-        if ($_.Exception.Response) {
+        # Sanitize error message
+        $sanitizedError = $_.Exception.Message -replace '(eyJ|[A-Za-z0-9_-]{20,})', '[REDACTED]'
+        Write-Error "Error checking tunnel status: $sanitizedError"
+        
+        if ($_.Exception.Response -and $CustomDebug) {
             $reader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
             $errorBody = $reader.ReadToEnd()
-            Write-Host "Response body: $errorBody" -ForegroundColor Red
+            # Sanitize error body
+            $sanitizedErrorBody = $errorBody -replace '(eyJ|[A-Za-z0-9_-]{20,})', '[REDACTED]'
+            Write-Error "Response body: $sanitizedErrorBody"
         }
         return "Error"
     }
@@ -212,25 +210,13 @@ function Get-CloudflareTunnelStatus {
 $script:TokenType = "Unknown"
 $script:SuccessfulAuthMethod = $null
 
-# Check for tunnel status
-Write-Host "Checking tunnel health..." -ForegroundColor Cyan
 $maxAttempts = 30
 $attempt = 0
 $sleepTime = 20
 
 # First, validate that the API token works with this specific tunnel
 if (-not (Test-CloudflareToken -AccountId $CloudflareAccountId -ApiToken $CloudflareApiToken -TunnelId $TunnelID)) {
-    Write-Host "`nToken issues detected. Here's what to do:" -ForegroundColor Red
-    Write-Host "1. Go to Cloudflare Dashboard > Account Profile > API Tokens" -ForegroundColor Yellow
-    Write-Host "2. Create a new API token with these permissions:" -ForegroundColor Yellow
-    Write-Host "   - Account > Zero Trust > Read" -ForegroundColor Yellow
-    Write-Host "3. Make sure the token has access to the specific account ID" -ForegroundColor Yellow
-    Write-Host "4. Try running this script again with the new token" -ForegroundColor Yellow
-    
-    if ($script:TokenType -eq "GlobalAPIKey") {
-        Write-Host "`nYou seem to be using a Global API Key - API Tokens are recommended instead" -ForegroundColor Cyan
-    }
-    
+    Write-Error "Token issues detected. Please create a new API token with 'Account > Zero Trust > Read' permissions."
     exit 1
 }
 
@@ -241,18 +227,21 @@ while ($attempt -lt $maxAttempts) {
     $tunnelStatus = Get-CloudflareTunnelStatus -TunnelId $TunnelID -AccountId $CloudflareAccountId -ApiToken $CloudflareApiToken
     
     if ($tunnelStatus -eq "healthy") {
-        Write-Host "Tunnel is healthy!" -ForegroundColor Green
+        if ($CustomDebug) {
+            Write-Host "Tunnel is healthy!" -ForegroundColor Green
+        }
         exit 0
     }
     elseif ($tunnelStatus -eq "Error") {
-        Write-Host "Error checking tunnel status" -ForegroundColor Red
+        Write-Error "Error checking tunnel status"
         exit 1
     }
     
-    Write-Host "Waiting for tunnel to be healthy (attempt $attempt/$maxAttempts)..." -ForegroundColor Yellow
+    if ($CustomDebug -or $attempt % 5 -eq 0) {
+        Write-Host "Waiting for tunnel to be healthy (attempt $attempt/$maxAttempts)..." -ForegroundColor Yellow
+    }
     Start-Sleep -Seconds $sleepTime
 }
 
-Write-Host "Timeout waiting for tunnel to be healthy" -ForegroundColor Red
-Write-Host "Total wait time: $($maxAttempts * $sleepTime) seconds" -ForegroundColor Red
+Write-Error "Timeout waiting for tunnel to be healthy"
 exit 1 
