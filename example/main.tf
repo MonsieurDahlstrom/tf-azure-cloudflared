@@ -25,12 +25,20 @@ resource "azurerm_subnet" "virtual_machines" {
 
 module "cloudflared" {
   source = "../"
-  domain_name = "monsieurdahlstrom.dev"
   resource_group_name = azurerm_resource_group.example.name
   subnet_id = azurerm_subnet.virtual_machines.id
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token = var.cloudflare_api_token
-  vnet_cidr = "10.0.0.0/16"
+  tunnel_spec = {
+    domain_name = "monsieurdahlstrom.dev"
+    vnet_cidr = "10.0.0.0/16"
+    ingress_rules = [
+      {
+        hostname = "monsieurdahlstrom.dev"
+        service  = "http_status:404"
+      }
+    ]
+  }
 }
 
 # Example of using the tunnel_health_check as a dependency
