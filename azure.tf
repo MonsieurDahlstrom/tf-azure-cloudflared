@@ -5,11 +5,12 @@ data "azurerm_resource_group" "rg" {
 locals {
   # Use the variable or fall back to the default value
   vm_name = var.vm_name
-  cloudflare_tunnel_secret = base64encode(jsonencode({
+  # Set the tunnel token value based on available inputs
+  cloudflare_tunnel_token = var.tunnel_spec != null ? base64encode(jsonencode({
     "a" : var.cloudflare_account_id,
     "s" : base64sha256(random_string.tunnel_secret[0].result),
     "t" : cloudflare_zero_trust_tunnel_cloudflared.tunnel[0].id,
-  }))
+  })) : var.tunnel_token_secret
 }
 
 # Create Network Interface
@@ -104,7 +105,7 @@ write_files:
       echo "Installed cloudflared package at $(date)" >> /var/log/cloudflared-install.log 2>&1
       
       # Install the tunnel
-      cloudflared service install ${local.cloudflare_tunnel_secret} >> /var/log/cloudflared-install.log 2>&1
+      cloudflared service install ${local.cloudflare_tunnel_token} >> /var/log/cloudflared-install.log 2>&1
       
       echo "Completed cloudflared service install at $(date)" >> /var/log/cloudflared-install.log 2>&1
       
