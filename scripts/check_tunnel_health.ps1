@@ -92,9 +92,6 @@ function Test-CloudflareToken {
         "Content-Type" = "application/json"
     }
     
-    # This script checks the tunnel directly without requiring account-level read permissions.
-    $tunnelUri = "https://api.cloudflare.com/client/v4/accounts/[REDACTED_ACCOUNT]/cfd_tunnel/[REDACTED_TUNNEL]"
-    
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $response = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/${AccountId}/cfd_tunnel/${TunnelId}" -Headers $headers -Method Get -UseBasicParsing

@@ -5,11 +5,12 @@ data "azurerm_resource_group" "rg" {
 locals {
   # Use the variable or fall back to the default value
   vm_name = var.vm_name
-  cloudflare_tunnel_secret = base64encode(jsonencode({
+  # Set the tunnel token value based on available inputs
+  cloudflare_tunnel_token = var.tunnel_spec != null ? base64encode(jsonencode({
     "a" : var.cloudflare_account_id,
-    "s" : base64sha256(random_string.tunnel_secret.result),
-    "t" : cloudflare_zero_trust_tunnel_cloudflared.tunnel.id,
-  }))
+    "s" : base64sha256(random_string.tunnel_secret[0].result),
+    "t" : cloudflare_zero_trust_tunnel_cloudflared.tunnel[0].id,
+  })) : var.tunnel_token_secret
 }
 
 # Create Network Interface
@@ -29,12 +30,12 @@ resource "azurerm_network_interface" "vm" {
 
 # Create Linux Virtual Machine
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                = local.vm_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
-  size                = "Standard_B2s"
-  admin_username      = "cloudflared"
-  admin_password      = "Cloudflared123!" # This should be stored in a secure way in production
+  name                            = local.vm_name
+  resource_group_name             = data.azurerm_resource_group.rg.name
+  location                        = data.azurerm_resource_group.rg.location
+  size                            = "Standard_B2s"
+  admin_username                  = "cloudflared"
+  admin_password                  = "Cloudflared123!" # This should be stored in a secure way in production
   disable_password_authentication = false
 
   # Add managed identity
@@ -43,7 +44,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   boot_diagnostics {
-    storage_account_uri = null  # Uses managed storage account
+    storage_account_uri = null # Uses managed storage account
   }
 
   network_interface_ids = [
@@ -104,7 +105,7 @@ write_files:
       echo "Installed cloudflared package at $(date)" >> /var/log/cloudflared-install.log 2>&1
       
       # Install the tunnel
-      cloudflared service install ${local.cloudflare_tunnel_secret} >> /var/log/cloudflared-install.log 2>&1
+      cloudflared service install ${local.cloudflare_tunnel_token} >> /var/log/cloudflared-install.log 2>&1
       
       echo "Completed cloudflared service install at $(date)" >> /var/log/cloudflared-install.log 2>&1
       
@@ -244,16 +245,13 @@ resource "azurerm_virtual_machine_extension" "aad_login" {
 # Handle cleanup when destroying the module
 resource "null_resource" "cloudflared_cleanup" {
   triggers = {
-    vm_id = azurerm_linux_virtual_machine.vm.id
+    vm_id          = azurerm_linux_virtual_machine.vm.id
     resource_group = data.azurerm_resource_group.rg.name
-    vm_name = local.vm_name
+    vm_name        = local.vm_name
   }
 
   depends_on = [
-    azurerm_linux_virtual_machine.vm,
-    cloudflare_zero_trust_tunnel_cloudflared.tunnel,
-    cloudflare_zero_trust_tunnel_cloudflared_config.config,
-    cloudflare_zero_trust_tunnel_cloudflared_route.vnet
+    azurerm_linux_virtual_machine.vm
   ]
 
   provisioner "local-exec" {

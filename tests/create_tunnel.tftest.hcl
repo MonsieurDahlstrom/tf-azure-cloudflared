@@ -1,6 +1,6 @@
 run "cloudflared" {
     module {
-        source = "./example"
+        source = "./example/create_tunnel"
     }
 
     assert {
