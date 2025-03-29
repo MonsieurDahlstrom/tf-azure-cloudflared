@@ -1,3 +1,10 @@
+## [1.1.1-beta.1](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v1.1.0...v1.1.1-beta.1) (2025-03-29)
+
+
+### Bug Fixes
+
+* reduced logging ([d7b20f8](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/commit/d7b20f82fa28f0f663cbdcba312dbc560970ba84))
+
 # [1.1.0](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v1.0.0...v1.1.0) (2025-03-27)
 
 
