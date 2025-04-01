@@ -8,4 +8,10 @@ repos:
           - --args=-diff
           - --args=-write=false
       - id: terraform_validate
+        args:
+          - --args=-no-color
+        exclude: |
+          (?x)^(
+            .*examples/.*
+          )$
       

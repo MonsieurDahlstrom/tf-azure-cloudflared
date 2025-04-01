@@ -1,6 +1,5 @@
 ## [1.1.1](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v1.1.0...v1.1.1) (2025-03-29)
 
-
 ### Bug Fixes
 
 * added test for providing tunnnel_token_secret rather then tunnel_spec ([271f725](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/commit/271f7257113afdc6f68db343e3d76c77fa2cf8c8))
