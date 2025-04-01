@@ -1,3 +1,15 @@
+# [2.0.0-beta.1](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v1.1.1-beta.2...v2.0.0-beta.1) (2025-04-01)
+
+
+### Features
+
+* removed cloudflare provider dependency ([25ac6d7](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/commit/25ac6d7b796622e44430b2018d77fa446c464cfd))
+
+
+### BREAKING CHANGES
+
+* cloudflare provider has been removed and the module only takes a tunnel_token_secret
+
 ## [1.1.1-beta.2](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v1.1.1-beta.1...v1.1.1-beta.2) (2025-03-29)
 
 
