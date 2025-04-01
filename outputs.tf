@@ -13,17 +13,7 @@ output "vm_private_ip" {
   value       = try(azurerm_network_interface.vm.private_ip_address, null)
 }
 
-output "cloudflared_tunnel_id" {
-  description = "The ID of the Cloudflared tunnel"
-  value       = try(cloudflare_zero_trust_tunnel_cloudflared.tunnel[0].id, null)
-}
-
-output "tunnel_status" {
-  description = "Status of the Cloudflare tunnel"
-  value       = try(cloudflare_zero_trust_tunnel_cloudflared.tunnel[0].status, null)
-}
-
-output "tunnel_health_check" {
-  description = "The tunnel health check resource that can be used in depends_on blocks"
-  value       = null_resource.tunnel_health_check
+output "vm_health_check" {
+  description = "The VM health check resource that can be used in depends_on blocks"
+  value       = null_resource.vm_health_check
 }

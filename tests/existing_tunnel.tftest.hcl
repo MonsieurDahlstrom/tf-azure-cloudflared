@@ -1,36 +1,31 @@
 run "cloudflared" {
     module {
-        source = "./example/existing_tunnel"
-    }
-
-    assert {
-        condition     = module.cloudflared.cloudflared_tunnel_id == null
-        error_message = "Cloudflared tunnel should be created"
+        source = "./examples/existing_tunnel"
     }
 
     assert {
         condition     = can(cidrnetmask("${module.cloudflared.vm_private_ip}/32"))
-        error_message = "Cloudflared tunnel should be created"
+        error_message = "VM private IP should be a valid IP address"
     }
 
     assert {
         condition     = module.cloudflared.vm_id != null
-        error_message = "Cloudflared tunnel should be created"
+        error_message = "VM should be created"
     }
 
     assert {
-        condition     = module.cloudflared.tunnel_health_check != null
-        error_message = "Tunnel health check should be executed"
+        condition     = module.cloudflared.vm_health_check != null
+        error_message = "VM health check should be executed"
     }
 
     assert {
-        condition     = module.cloudflared.tunnel_health_check.triggers.timestamp != null
-        error_message = "Tunnel health check should have a timestamp"
+        condition     = module.cloudflared.vm_health_check.triggers.timestamp != null
+        error_message = "VM health check should have a timestamp"
     }
 
-    # Check if the tunnel health check completed successfully
+    # Check if the VM health check completed successfully
     assert {
-        condition     = module.cloudflared.tunnel_health_check.id != null
-        error_message = "Tunnel health check should complete successfully"
+        condition     = module.cloudflared.vm_health_check.id != null
+        error_message = "VM health check should complete successfully"
     }
 }
