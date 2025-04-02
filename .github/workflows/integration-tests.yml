@@ -28,18 +28,18 @@ jobs:
       TF_IN_AUTOMATION: true
       TF_INPUT: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
           
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v3.1.2
         with:
           terraform_version: 1.6.6
           terraform_wrapper: false
           
       - name: Cache Terraform dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.2
         with:
           path: |
             ~/.terraform.d/plugin-cache
@@ -49,7 +49,7 @@ jobs:
             ${{ runner.os }}-terraform-
             
       - name: Azure Login
-        uses: azure/login@v1
+        uses: azure/login@v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -78,7 +78,7 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_USE_OIDC: true
-          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr-' || '' }}${{ github.base_ref }}
 
   test-windows:
     name: Integration Tests (Windows)
@@ -92,18 +92,18 @@ jobs:
       TF_IN_AUTOMATION: true
       TF_INPUT: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
           
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v3.1.2
         with:
           terraform_version: 1.6.6
           terraform_wrapper: false
           
       - name: Cache Terraform dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.2
         with:
           path: |
             C:\Users\runner\AppData\Local\terraform.d\plugin-cache
@@ -113,7 +113,7 @@ jobs:
             ${{ runner.os }}-terraform-
             
       - name: Azure Login
-        uses: azure/login@v1
+        uses: azure/login@v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -140,4 +140,4 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_USE_OIDC: true
-          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }} 
+          TF_VAR_environment: ${{ github.event_name == 'pull_request' && 'pr-' || '' }}${{ github.base_ref }} 
