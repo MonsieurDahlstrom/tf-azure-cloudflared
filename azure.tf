@@ -18,6 +18,12 @@ resource "azurerm_network_interface" "vm" {
     private_ip_address_allocation = "Dynamic"
   }
 
+  lifecycle {
+    ignore_changes = [
+      tags
+    ]
+  }
+
   tags = local.common_tags
 }
 
@@ -34,6 +40,12 @@ resource "azurerm_linux_virtual_machine" "vm" {
   # Add managed identity
   identity {
     type = "SystemAssigned"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      tags
+    ]
   }
 
   boot_diagnostics {
