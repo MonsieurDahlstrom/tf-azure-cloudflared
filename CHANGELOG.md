@@ -1,3 +1,10 @@
+## [2.0.1-beta.1](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v2.0.0...v2.0.1-beta.1) (2025-04-02)
+
+
+### Bug Fixes
+
+* added default created_at tags and tags ignore after inital resource creation ([591f477](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/commit/591f4774e69e1b1c2dfc48e64a1f4b85d4bd19a5))
+
 # [2.0.0](https://github.com/MonsieurDahlstrom/tf-azure-cloudflared/compare/v1.1.1...v2.0.0) (2025-04-01)
 
 
