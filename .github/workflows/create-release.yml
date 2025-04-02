@@ -1,0 +1,31 @@
+name: Create tag and release
+
+on:
+    workflow_call:
+        inputs:
+            major_version:
+                required: true
+                type: string
+
+jobs:
+    create_release:
+        permissions: write-all
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+        - name: Create new tag
+          id: create_new_tag
+          run: |
+            git tag ${{ inputs.major_version }}
+            git push origin ${{ inputs.major_version }}
+        - name: Create release
+          uses: actions/create-release@v1.1.5
+          id: create_release
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: ${{ inputs.major_version }}
+            release_name: Release ${{ inputs.major_version }}
+            draft: false
+            prerelease: false
