@@ -5,7 +5,7 @@ This Terraform module creates an Azure-based Cloudflare Zero Trust Gateway that 
 ## Features
 
 - Deploys a Linux VM running Cloudflare Zero Trust Gateway
-- Automatically configures Cloudflare tunnel with secure authentication
+- Uses a pre-configured Cloudflare tunnel token for authentication
 - Implements managed identity for secure Azure resource access
 - Includes Azure AD SSH login support
 - Provides automatic cleanup on resource destruction
@@ -14,10 +14,9 @@ This Terraform module creates an Azure-based Cloudflare Zero Trust Gateway that 
 ## Prerequisites
 
 - Azure subscription with appropriate permissions
-- Cloudflare account with Zero Trust enabled
+- Pre-configured Cloudflare tunnel token
 - Terraform 1.6 or later
 - Azure CLI (for local development)
-- Cloudflare API token with appropriate permissions
 
 ## Usage
 
@@ -32,50 +31,9 @@ module "cloudflared" {
   vm_name            = "cloudflared-gateway"
   
   # Cloudflare configuration
-  cloudflare_account_id = "your-cloudflare-account-id"
-  cloudflare_api_token  = "your-cloudflare-api-token"
-  domain_name          = "example.com"
-  vnet_cidr           = "10.0.0.0/16"
+  tunnel_token_secret = "your-cloudflare-tunnel-token"
   
-  # Optional ingress rules
-  ingress_rules = [
-    {
-      hostname = "app.example.com"
-      service  = "http://10.0.1.10:8080"
-    }
-  ]
-}
-```
-
-### Advanced Usage with Custom Settings
-
-```hcl
-module "cloudflared" {
-  source = "path/to/tf-azure-cloudflared"
-
-  resource_group_name = "my-resource-group"
-  subnet_id          = "/subscriptions/.../subnets/my-subnet"
-  vm_name            = "cloudflared-gateway"
-  
-  # Cloudflare configuration
-  cloudflare_account_id = "your-cloudflare-account-id"
-  cloudflare_api_token  = "your-cloudflare-api-token"
-  domain_name          = "example.com"
-  vnet_cidr           = "10.0.0.0/16"
-  
-  # Ingress rules
-  ingress_rules = [
-    {
-      hostname = "app.example.com"
-      service  = "http://10.0.1.10:8080"
-    },
-    {
-      hostname = "api.example.com"
-      service  = "http://10.0.1.11:3000"
-    }
-  ]
-  
-  # Custom tags
+  # Optional tags
   tags = {
     Environment = "Production"
     Project     = "Secure Access"
@@ -90,11 +48,7 @@ module "cloudflared" {
 | resource_group_name | Name of the Azure resource group | string | yes |
 | subnet_id | ID of the subnet where the VM will be deployed | string | yes |
 | vm_name | Name of the virtual machine running cloudflared | string | no |
-| cloudflare_account_id | Your Cloudflare account ID | string | yes |
-| cloudflare_api_token | Your Cloudflare API token with appropriate permissions | string | yes |
-| domain_name | The domain name to use for the tunnel | string | yes |
-| vnet_cidr | The CIDR block of the Azure VNet to route through the tunnel | string | yes |
-| ingress_rules | List of ingress rules for the Cloudflare tunnel | list(object) | no |
+| tunnel_token_secret | The Cloudflare tunnel token to use for authentication | string | yes |
 | tags | Additional tags to apply to all resources | map(string) | no |
 
 ## Outputs
@@ -102,8 +56,9 @@ module "cloudflared" {
 | Name | Description |
 |------|-------------|
 | vm_id | ID of the created virtual machine |
+| vm_name | Name of the VM running the cloudflared tunnel |
 | vm_private_ip | Private IP address of the virtual machine |
-| tunnel_id | ID of the created Cloudflare tunnel |
+| vm_health_check | The VM health check resource that can be used in depends_on blocks |
 
 ## Security Considerations
 
