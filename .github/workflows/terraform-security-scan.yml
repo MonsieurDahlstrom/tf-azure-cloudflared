@@ -10,6 +10,9 @@ on:
       AZURE_TENANT_ID:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Terraform Validation and Security
