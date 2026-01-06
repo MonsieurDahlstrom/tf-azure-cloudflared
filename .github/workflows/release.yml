@@ -6,6 +6,9 @@ on:
       - main
       - next
 
+permissions:
+  contents: write
+
 jobs:
   release:
     name: Semantic Release
